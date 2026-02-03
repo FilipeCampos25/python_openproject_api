@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Data
+# Ignore CSV files in data/ (do not commit these)
+/data/*.csv
+
+# Env
+.env
+
+# OS
+.DS_Store
+Thumbs.db

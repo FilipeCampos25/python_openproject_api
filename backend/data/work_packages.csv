@@ -1,0 +1,37 @@
+﻿wp_id,wp_subject,wp_type,wp_status,wp_priority,project_id,project_name,assignee,author,start_date,due_date,done_ratio,created_at,updated_at,is_late
+1,Start of project,Milestone,Closed,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,,,,2026-01-22 12:26:21.136000+00:00,2026-01-22 12:26:21.290000+00:00,False
+2,Organize open source conference,Summary task,In progress,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,2026-01-19,2026-02-02,,2026-01-22 12:26:21.360000+00:00,2026-01-22 12:26:22.654000+00:00,True
+3,Set date and location of conference,Task,In progress,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,2026-01-19,2026-01-22,,2026-01-22 12:26:21.441000+00:00,2026-01-22 12:26:22.257000+00:00,True
+4,Send invitation to speakers,Task,In progress,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,2026-01-19,2026-01-19,,2026-01-22 12:26:21.516000+00:00,2026-01-22 12:26:21.651000+00:00,True
+5,Contact sponsoring partners,Task,New,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,2026-01-19,2026-01-20,,2026-01-22 12:26:21.723000+00:00,2026-01-22 12:26:21.948000+00:00,True
+6,Create sponsorship brochure and hand-outs,Task,New,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,2026-01-19,2026-01-22,,2026-01-22 12:26:22.022000+00:00,2026-01-22 12:26:22.129000+00:00,True
+7,Invite attendees to conference,Task,New,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,2026-01-23,2026-01-23,,2026-01-22 12:26:22.328000+00:00,2026-01-22 12:26:22.428000+00:00,True
+8,Setup conference website,Task,New,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,2026-01-23,2026-02-02,,2026-01-22 12:26:22.505000+00:00,2026-01-22 12:26:22.600000+00:00,True
+9,Conference,Milestone,Scheduled,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,,,,2026-01-22 12:26:22.697000+00:00,2026-01-22 12:26:22.754000+00:00,False
+10,Follow-up tasks,Summary task,To be scheduled,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,2026-02-09,2026-02-19,,2026-01-22 12:26:22.797000+00:00,2026-01-22 12:26:23.189000+00:00,False
+11,Upload presentations to website,Task,New,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,2026-02-09,2026-02-18,,2026-01-22 12:26:22.852000+00:00,2026-01-22 12:26:22.954000+00:00,False
+12,Party for conference supporters :-),Task,New,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,2026-02-19,2026-02-19,,2026-01-22 12:26:23.041000+00:00,2026-01-22 12:26:23.134000+00:00,False
+13,End of project,Milestone,New,Normal,1,Demo project,OpenProject Admin,OpenProject Admin,,,,2026-01-22 12:26:23.240000+00:00,2026-01-22 12:26:23.296000+00:00,False
+14,New login screen,User story,In specification,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-01-19,,,2026-01-22 12:26:24.354000+00:00,2026-01-22 12:26:24.436000+00:00,False
+15,Password reset does not send email,Bug,Confirmed,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-01-19,,,2026-01-22 12:26:24.482000+00:00,2026-01-22 12:26:24.544000+00:00,False
+16,New website,Epic,Specified,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-01-19,2026-02-16,,2026-01-22 12:26:24.595000+00:00,2026-01-22 12:26:25.266000+00:00,False
+17,Newsletter registration form,User story,In progress,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-01-19,,,2026-01-22 12:26:24.649000+00:00,2026-01-22 12:26:24.747000+00:00,False
+18,Implement product tour,User story,In specification,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-01-19,,,2026-01-22 12:26:24.801000+00:00,2026-01-22 12:26:24.896000+00:00,False
+19,New landing page,User story,Specified,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-16,2026-02-16,,2026-01-22 12:26:24.952000+00:00,2026-01-22 12:26:25.210000+00:00,False
+20,Create wireframes for new landing page,Task,In progress,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-16,2026-02-16,,2026-01-22 12:26:25.012000+00:00,2026-01-22 12:26:25.113000+00:00,False
+21,Contact form,User story,Specified,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-09,2026-02-09,,2026-01-22 12:26:25.309000+00:00,2026-01-22 12:26:25.367000+00:00,False
+22,Feature carousel,User story,Specified,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-01-19,,,2026-01-22 12:26:25.410000+00:00,2026-01-22 12:26:25.725000+00:00,False
+23,Make screenshots for feature tour,Task,Closed,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-01-19,,,2026-01-22 12:26:25.474000+00:00,2026-01-22 12:26:25.665000+00:00,False
+24,Wrong hover color,Bug,Rejected,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-09,2026-02-09,,2026-01-22 12:26:25.777000+00:00,2026-01-22 12:26:25.832000+00:00,False
+25,SSL certificate,User story,Specified,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-10,2026-02-10,,2026-01-22 12:26:25.873000+00:00,2026-01-22 12:26:25.927000+00:00,False
+26,Set-up Staging environment,User story,In specification,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-11,2026-02-11,,2026-01-22 12:26:25.969000+00:00,2026-01-22 12:26:26.025000+00:00,False
+27,Choose a content management system,User story,Specified,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-12,2026-02-12,,2026-01-22 12:26:26.067000+00:00,2026-01-22 12:26:26.120000+00:00,False
+28,Website navigation structure,User story,Specified,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-13,2026-02-13,,2026-01-22 12:26:26.160000+00:00,2026-01-22 12:26:26.416000+00:00,False
+29,Set up navigation concept for website.,Task,In specification,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-13,2026-02-13,,2026-01-22 12:26:26.214000+00:00,2026-01-22 12:26:26.358000+00:00,False
+30,Internal link structure,User story,Closed,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-13,2026-02-13,,2026-01-22 12:26:26.461000+00:00,2026-01-22 12:26:26.519000+00:00,False
+31,Develop v1.0,Summary task,In progress,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-02,2026-02-05,,2026-01-22 12:26:26.565000+00:00,2026-01-22 12:26:26.620000+00:00,False
+32,Release v1.0,Milestone,New,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,,,,2026-01-22 12:26:26.664000+00:00,2026-01-22 12:26:26.717000+00:00,False
+33,Develop v1.1,Summary task,New,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-09,2026-02-12,,2026-01-22 12:26:26.760000+00:00,2026-01-22 12:26:26.811000+00:00,False
+34,Release v1.1,Milestone,New,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,,,,2026-01-22 12:26:26.854000+00:00,2026-01-22 12:26:26.908000+00:00,False
+35,Develop v2.0,Summary task,New,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,2026-02-16,2026-02-19,,2026-01-22 12:26:26.951000+00:00,2026-01-22 12:26:27.006000+00:00,False
+36,Release v2.0,Milestone,New,Normal,2,Scrum project,OpenProject Admin,OpenProject Admin,,,,2026-01-22 12:26:27.050000+00:00,2026-01-22 12:26:27.103000+00:00,False
