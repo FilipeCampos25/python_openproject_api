@@ -248,7 +248,13 @@ def _render_kpis(bundle: DataBundle):
     open_wps = total_wps - completed_wps
 
     # Percentual de conclusão global
-    avg_completion = df["done_ratio"].mean() if not df.empty else 0
+    # Se done_ratio estiver ausente ou todo vazio, evita NaN aparecer no KPI.
+    if not df.empty and "done_ratio" in df.columns:
+        avg_completion = pd.to_numeric(df["done_ratio"], errors="coerce").mean()
+        if pd.isna(avg_completion):
+            avg_completion = 0
+    else:
+        avg_completion = 0
 
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
@@ -393,7 +399,6 @@ def main() -> None:
 
     # --- SIDEBAR ---
     with st.sidebar:
-        st.image(str(logo_path), width=150)
         st.header("⚙️ Configurações")
 
         data_mode = st.radio("Fonte de Dados", ["API (Tempo Real)", "CSV Local"], index=1)
