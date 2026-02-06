@@ -6,6 +6,9 @@ __pycache__/
 # Data
 # Ignore CSV files in data/ (do not commit these)
 /data/*.csv
+/backend/data/*.csv
+*/projects.csv
+*/work_packages.csv
 
 # Env
 .env
