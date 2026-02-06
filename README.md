@@ -102,6 +102,12 @@ python -m streamlit run backend/app/dashboard/app.py
 
 - Seguranca: e seguro versionar `credentials.toml` com `email = ""`. Nao coloque emails pessoais, chaves ou segredos nesses arquivos.
 
+## Autenticacao do dashboard (multiusuario)
+- O dashboard usa login/senha persistidos em SQLite local: `backend/data/dashboard_auth.db`.
+- No primeiro acesso, a tela do Streamlit pede a criacao do usuario administrador.
+- Depois disso, todos os acessos exigem login.
+- O administrador consegue criar novos usuarios pela barra lateral do dashboard.
+
 ## Smoke test
 1) Preencha o `.env` (principalmente `OPENPROJECT_BASE_URL` e `OPENPROJECT_API_KEY`).
 2) Rode:
