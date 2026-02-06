@@ -72,6 +72,11 @@ st.markdown(
   --login-column-max-width: 860px;
   --radius: 16px;
   --radius-sm: 12px;
+
+  /* dashboard cards */
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-shadow: 0 10px 30px rgba(2, 6, 23, 0.08);
 }
 
 /* fundo */
@@ -90,6 +95,15 @@ div[data-testid="stMainBlockContainer"] {
   padding-top: 0 !important;
   padding-bottom: 0 !important;
   min-height: 100vh !important;
+}
+
+/* remove "Press Enter to submit" */
+div[data-testid="InputInstructions"] {
+  display: none !important;
+}
+
+div[data-testid="InputInstructions"] * {
+  display: none !important;
 }
 
 /* esconder UI do Streamlit */
@@ -184,6 +198,21 @@ div[data-testid="stAppToolbar"] {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.2px;
+}
+
+/* ===== Dashboard Cards ===== */
+.block-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: var(--card-shadow);
+  margin-bottom: 18px;
+}
+
+.small-muted {
+  color: #64748b;
+  font-size: 0.92rem;
 }
 
 /* ===== CARD (1 retângulo central) ===== */
@@ -396,25 +425,30 @@ def _safe_value_counts(df: pd.DataFrame, col: str) -> pd.DataFrame:
     )
 
 
-PASTEL_STATUS_COLORS = {
-    "new": "#3b82f6",
-    "open": "#2563eb",
-    "in progress": "#0ea5e9",
-    "on track": "#10b981",
-    "closed": "#16a34a",
-    "done": "#22c55e",
-    "resolved": "#65a30d",
-    "rejected": "#ef4444",
-    "blocked": "#b91c1c",
-    "at risk": "#f59e0b",
+STATUS_COLORS = {
+    "new": "#5B8FF9",
+    "open": "#5AD8A6",
+    "in progress": "#5D7092",
+    "on track": "#4E7FFF",
+    "closed": "#6DC8EC",
+    "done": "#7ADFA0",
+    "resolved": "#9AE6B4",
+    "rejected": "#F6BD16",
+    "blocked": "#E8684A",
+    "at risk": "#FF9845",
+    "specified": "#5D7092",
+    "in specification": "#6C6D6E",
+    "to be scheduled": "#9270CA",
+    "scheduled": "#2EC7C9",
+    "confirmed": "#4E7FFF",
 }
-PASTEL_PRIORITY_COLORS = {
-    "low": "#10b981",
-    "normal": "#3b82f6",
-    "medium": "#6366f1",
-    "high": "#f59e0b",
-    "immediate": "#ef4444",
-    "urgent": "#b91c1c",
+PRIORITY_COLORS = {
+    "low": "#73D13D",
+    "normal": "#5B8FF9",
+    "medium": "#597EF7",
+    "high": "#FAAD14",
+    "immediate": "#FF7A45",
+    "urgent": "#F5222D",
 }
 
 
@@ -436,11 +470,11 @@ def _best_text_color(bg_hex: str) -> str:
 
 
 def _status_color(value: object) -> str:
-    return PASTEL_STATUS_COLORS.get(_norm_text(value), "#9ca3af")
+    return STATUS_COLORS.get(_norm_text(value), "#9ca3af")
 
 
 def _priority_color(value: object) -> str:
-    return PASTEL_PRIORITY_COLORS.get(_norm_text(value), "#9ca3af")
+    return PRIORITY_COLORS.get(_norm_text(value), "#9ca3af")
 
 
 def _status_color_map(values: Iterable[object]) -> dict[str, str]:
@@ -449,6 +483,34 @@ def _status_color_map(values: Iterable[object]) -> dict[str, str]:
 
 def _priority_color_map(values: Iterable[object]) -> dict[str, str]:
     return {str(v): _priority_color(v) for v in values}
+
+
+def _build_color_map(values: Iterable[object], base: dict[str, str]) -> dict[str, str]:
+    palette = [
+        "#5B8FF9",
+        "#5AD8A6",
+        "#5D7092",
+        "#F6BD16",
+        "#E8684A",
+        "#6DC8EC",
+        "#9270CA",
+        "#FF9D4D",
+        "#269A99",
+        "#FF99C3",
+        "#A4BADC",
+        "#8F8F8F",
+    ]
+    result: dict[str, str] = {}
+    i = 0
+    for raw in values:
+        key = str(raw)
+        mapped = base.get(_norm_text(raw))
+        if mapped:
+            result[key] = mapped
+        else:
+            result[key] = palette[i % len(palette)]
+            i += 1
+    return result
 
 
 def _style_status(value: object) -> str:
@@ -819,10 +881,10 @@ def _render_distribution_charts(bundle: DataBundle) -> None:
             hole=0.5,
             template=PX_TEMPLATE,
             color="wp_status",
-            color_discrete_map=_status_color_map(status_df["wp_status"].tolist()),
+            color_discrete_map=_build_color_map(status_df["wp_status"].tolist(), STATUS_COLORS),
         )
         fig_status.update_traces(textposition="inside", textinfo="percent")
-        fig_status.update_layout(showlegend=True, margin=dict(t=10, b=0, l=0, r=0))
+        fig_status.update_layout(showlegend=True, margin=dict(t=10, b=10, l=10, r=10))
         st.plotly_chart(fig_status, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -835,10 +897,193 @@ def _render_distribution_charts(bundle: DataBundle) -> None:
             x="wp_priority",
             y="count",
             template=PX_TEMPLATE,
+            color="wp_priority",
+            color_discrete_map=_build_color_map(priority_df["wp_priority"].tolist(), PRIORITY_COLORS),
         )
         fig_priority.update_layout(xaxis_title="", yaxis_title="Quantidade", showlegend=False, margin=dict(t=10, b=0, l=0, r=0))
         st.plotly_chart(fig_priority, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _first_existing(columns: Iterable[str], candidates: Iterable[str]) -> str | None:
+    cols = {c for c in columns}
+    for c in candidates:
+        if c in cols:
+            return c
+    return None
+
+
+def _coerce_datetime(series: pd.Series) -> pd.Series:
+    return pd.to_datetime(series, errors="coerce")
+
+
+def _build_gantt_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+
+    start_col = _first_existing(
+        df.columns,
+        ["wp_start_date", "start_date", "start", "created_at"],
+    )
+    end_col = _first_existing(
+        df.columns,
+        ["wp_due_date", "due_date", "finish_date", "end_date"],
+    )
+    name_col = _first_existing(
+        df.columns,
+        ["wp_subject", "subject", "title", "name"],
+    )
+    status_col = _first_existing(
+        df.columns,
+        ["wp_status", "status"],
+    )
+    project_col = _first_existing(
+        df.columns,
+        ["project_name", "project"],
+    )
+    assignee_col = _first_existing(
+        df.columns,
+        ["assignee", "assigned_to", "responsible", "wp_assignee"],
+    )
+    progress_col = _first_existing(
+        df.columns,
+        ["done_ratio", "progress"],
+    )
+
+    if not start_col or not end_col or not name_col:
+        return pd.DataFrame()
+
+    gantt = df.copy()
+    gantt["start"] = _coerce_datetime(gantt[start_col])
+    gantt["end"] = _coerce_datetime(gantt[end_col])
+
+    gantt = gantt.dropna(subset=["start", "end"])
+    gantt = gantt[gantt["end"] >= gantt["start"]]
+
+    gantt["task"] = gantt[name_col].astype(str)
+    gantt["status"] = gantt[status_col].astype(str) if status_col else "N/A"
+    gantt["project"] = gantt[project_col].astype(str) if project_col else "N/A"
+    gantt["assignee"] = gantt[assignee_col].astype(str) if assignee_col else "N/A"
+    gantt["progress"] = pd.to_numeric(gantt[progress_col], errors="coerce").fillna(0) if progress_col else 0
+
+    return gantt[["task", "start", "end", "status", "project", "assignee", "progress"]]
+
+
+def _render_gantt(bundle: DataBundle) -> None:
+    df = _build_gantt_df(bundle.work_packages)
+    if df.empty:
+        st.info("Sem dados suficientes para o Gantt (precisa de datas de início e fim).")
+        return
+
+    st.markdown("<div class='block-card'>", unsafe_allow_html=True)
+    st.markdown("#### Gantt de Work Packages")
+
+    fig = px.timeline(
+        df,
+        x_start="start",
+        x_end="end",
+        y="task",
+        color="status",
+        color_discrete_map=_status_color_map(df["status"].unique().tolist()),
+        hover_data={
+            "project": True,
+            "assignee": True,
+            "progress": True,
+            "start": True,
+            "end": True,
+        },
+    )
+    fig.update_yaxes(autorange="reversed")
+    fig.update_layout(height=520, margin=dict(t=10, b=10, l=10, r=10))
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _compute_late_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+
+    late_col = "is_late" if "is_late" in df.columns else None
+    due_col = _first_existing(df.columns, ["wp_due_date", "due_date", "finish_date", "end_date"])
+    status_col = _first_existing(df.columns, ["wp_status", "status"])
+    progress_col = _first_existing(df.columns, ["done_ratio", "progress"])
+
+    today = pd.Timestamp(date.today())
+    df2 = df.copy()
+
+    if late_col:
+        mask = df2[late_col].astype(str).str.lower().isin({"true", "1"})
+    elif due_col:
+        due = _coerce_datetime(df2[due_col])
+        progress = pd.to_numeric(df2[progress_col], errors="coerce").fillna(0) if progress_col else 0
+        status = df2[status_col].astype(str).str.lower() if status_col else ""
+        closed = status.isin({"closed", "done", "resolved", "finalizado", "concluído"})
+        mask = (due < today) & (~closed) & (progress < 100)
+    else:
+        return pd.DataFrame()
+
+    return df2[mask]
+
+
+def _render_tables(bundle: DataBundle) -> None:
+    df = bundle.work_packages
+    if df.empty:
+        st.warning("Sem dados para tabelas.")
+        return
+
+    name_col = _first_existing(df.columns, ["wp_subject", "subject", "title", "name"])
+    project_col = _first_existing(df.columns, ["project_name", "project"])
+    assignee_col = _first_existing(df.columns, ["assignee", "assigned_to", "responsible", "wp_assignee"])
+    status_col = _first_existing(df.columns, ["wp_status", "status"])
+    priority_col = _first_existing(df.columns, ["wp_priority", "priority"])
+    start_col = _first_existing(df.columns, ["wp_start_date", "start_date", "start", "created_at"])
+    due_col = _first_existing(df.columns, ["wp_due_date", "due_date", "finish_date", "end_date"])
+    progress_col = _first_existing(df.columns, ["done_ratio", "progress"])
+
+    cols = [c for c in [name_col, project_col, assignee_col, status_col, priority_col, start_col, due_col, progress_col] if c]
+    table = df[cols].copy()
+
+    table = table.rename(
+        columns={
+            name_col: "tarefa",
+            project_col: "projeto",
+            assignee_col: "responsavel",
+            status_col: "status",
+            priority_col: "prioridade",
+            start_col: "inicio",
+            due_col: "fim",
+            progress_col: "progresso",
+        }
+    )
+
+    late_df = _compute_late_df(df)
+    if not late_df.empty:
+        late_table = late_df[cols].copy().rename(
+            columns={
+                name_col: "tarefa",
+                project_col: "projeto",
+                assignee_col: "responsavel",
+                status_col: "status",
+                priority_col: "prioridade",
+                start_col: "inicio",
+                due_col: "fim",
+                progress_col: "progresso",
+            }
+        )
+    else:
+        late_table = pd.DataFrame()
+
+    st.markdown("<div class='block-card'>", unsafe_allow_html=True)
+    st.markdown("#### Planilha de Itens")
+    view_mode = st.radio("Exibir", ["Todos os itens", "Atrasados"], horizontal=True, index=0)
+    if view_mode == "Atrasados":
+        if late_table.empty:
+            st.info("Nenhum item atrasado.")
+        else:
+            st.dataframe(late_table, use_container_width=True, hide_index=True)
+    else:
+        st.dataframe(table, use_container_width=True, hide_index=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _apply_filters(
@@ -926,6 +1171,8 @@ def main() -> None:
     _render_kpis(filtered)
     st.markdown("---")
     _render_distribution_charts(filtered)
+    _render_gantt(filtered)
+    _render_tables(filtered)
 
 
 if __name__ == "__main__":
