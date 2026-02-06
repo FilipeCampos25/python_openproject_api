@@ -85,6 +85,13 @@ section.main .block-container {
   padding-bottom: 0 !important;
 }
 
+/* remove padding extra que o Streamlit adiciona ao topo do main */
+div[data-testid="stMainBlockContainer"] {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  min-height: 100vh !important;
+}
+
 /* esconder UI do Streamlit */
 header[data-testid="stHeader"],
 div[data-testid="stToolbar"],
@@ -299,6 +306,14 @@ div[data-testid="stAppToolbar"] {
 .st-key-login_card_container div[data-testid="stTextInput"] input {
   padding-inline: 44px !important; /* mesmo espaço esquerda/direita */
   text-align: center !important;
+}
+
+div[data-testid="InputInstructions"] {
+  display: none !important;
+}
+
+div[data-testid="InputInstructions"] * {
+  display: none !important;
 }
 
 /* Botão do olhinho: sai do fluxo e não "puxa" o input */
@@ -615,6 +630,56 @@ def _render_login_header(logo_path: Path) -> None:
         unsafe_allow_html=True,
     )
 
+
+def _disable_password_manager_hints() -> None:
+    # Evita sugestões do navegador/gerenciadores no login
+    st.markdown(
+        """
+<script>
+(() => {
+  const apply = () => {
+    const inputs = document.querySelectorAll('input');
+    inputs.forEach((el) => {
+      const type = (el.getAttribute('type') || '').toLowerCase();
+      const placeholder = (el.getAttribute('placeholder') || '').toLowerCase();
+      if (type === 'password' || placeholder.includes('senha')) {
+        el.setAttribute('autocomplete', 'new-password');
+        el.setAttribute('data-lpignore', 'true');
+        el.setAttribute('data-form-type', 'other');
+      }
+      if (placeholder.includes('usuario')) {
+        el.setAttribute('autocomplete', 'off');
+        el.setAttribute('data-lpignore', 'true');
+        el.setAttribute('data-form-type', 'other');
+      }
+      // Evita "Press Enter to submit"
+      if (placeholder.includes('senha') || placeholder.includes('usuario')) {
+        el.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+          }
+        }, { passive: false });
+      }
+    });
+
+    // desativa submit automático por Enter nos forms do login
+    document.querySelectorAll('form').forEach((form) => {
+      form.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+        }
+      }, { passive: false });
+    });
+  };
+  apply();
+  setTimeout(apply, 300);
+})();
+</script>
+""",
+        unsafe_allow_html=True,
+    )
+
+
 def _require_dashboard_authentication() -> None:
     _init_auth_db()
     if _is_authenticated():
@@ -659,8 +724,10 @@ def _require_dashboard_authentication() -> None:
                     # login normal
                     with st.form("login_form", clear_on_submit=False):
                         username = st.text_input("u", placeholder="usuario", label_visibility="collapsed")
-                        password = st.text_input("p", type="password", placeholder=" senha", label_visibility="collapsed")
+                        password = st.text_input("p", type="password", placeholder="senha", label_visibility="collapsed")
                         submitted_login = st.form_submit_button("entrar", use_container_width=False)
+
+                    _disable_password_manager_hints()
 
                     if submitted_login:
                         user = _authenticate_user(username, password)
