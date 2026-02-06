@@ -36,7 +36,7 @@ from app.transformations.normalize import normalize_records
 # =============================================================================
 st.set_page_config(
     page_title="Gestão de Projetos | Dashboard",
-    page_icon="📌",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -247,6 +247,16 @@ header[data-testid="stHeader"] {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.25px;
+}
+
+/* ===== Dashboard Title (smaller than login-title) ===== */
+.dashboard-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0.5px;
 }
 
 @media (max-width: 900px) {
@@ -565,7 +575,7 @@ def _safe_value_counts(df: pd.DataFrame, col: str) -> pd.DataFrame:
 
 
 STATUS_COLORS = {
-    "new": "#0077b6",              # Azul Oceano (Início limpo)
+    "new": "#096292",              # Azul Oceano (Início limpo)
     "open": "#019bb9",             # Turquesa Vivo (Aberto/Ativo)
     "in progress": "#ff7b00",      # Âmbar (Ação/Atenção)
     "on track": "#2d6a4f",         # Verde Floresta (Progresso Seguro)
@@ -909,7 +919,6 @@ def _render_app_header(logo_path: Path) -> None:
   <div class="app-logo">{logo_html}</div>
   <div>
     <div class="app-title">GESTÃO DE PROJETOS E PRODUTOS</div>
-    <div class="app-subtitle">Acesso ao painel analítico</div>
   </div>
 </div>
 """,
@@ -1035,7 +1044,10 @@ def _require_dashboard_authentication() -> None:
 def _render_header() -> None:
     col1, col2 = st.columns([3, 1], vertical_alignment="center")
     with col1:
-        st.title("Painel de Controle de Projetos")
+        st.markdown(
+            "<div class='dashboard-title'>Painel de Controle de Projetos</div>",
+            unsafe_allow_html=True,
+        )
         st.markdown(
             "<div class='small-muted'>Acompanhamento de entregas, prazos e produtividade.</div>",
             unsafe_allow_html=True,
@@ -1081,7 +1093,7 @@ def _render_kpis(bundle: DataBundle) -> None:
     with c3:
         st.metric("Em Aberto", open_wps)
     with c4:
-        st.metric("Atrasados", late_wps, delta=(str(late_wps) if late_wps > 0 else None), delta_color="inverse")
+        st.metric("Atrasados", late_wps)
     with c5:
         st.metric("Progresso Médio", f"{avg_completion:.1f}%")
 
