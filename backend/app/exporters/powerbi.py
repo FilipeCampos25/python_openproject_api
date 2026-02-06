@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
 from app.config import settings
+from app.openproject_api.client import OpenProjectClient, OpenProjectAPIError
 from app.transformations.normalize import normalize_records
 
 
@@ -60,3 +61,41 @@ def export_many_to_csv(
     for schema_name, (records, filename) in datasets.items():
         results[schema_name] = export_to_csv(records, filename, schema_name=schema_name)
     return results
+
+
+def export_to_powerbi(
+    base_url: str,
+    api_key: str,
+    verify_ssl: bool = True,
+    timeout: Optional[int] = None,
+) -> tuple["pd.DataFrame", "pd.DataFrame"]:
+    """
+    Coleta dados via API do OpenProject e retorna DataFrames normalizados.
+
+    Essa funcao e usada pelo dashboard (modo "api").
+    """
+    # Import local para evitar dependencia pesada no import do modulo
+    import pandas as pd
+
+    if not base_url:
+        raise RuntimeError("OPENPROJECT_BASE_URL nao configurada no .env")
+    if not api_key:
+        raise RuntimeError("OPENPROJECT_API_KEY nao configurada no .env")
+
+    client = OpenProjectClient(
+        base_url=base_url,
+        api_key=api_key,
+        timeout=timeout or max(10, settings.api_timeout_seconds),
+        verify=verify_ssl,
+    )
+
+    try:
+        projects = client.list_projects()
+        work_packages = client.list_work_packages(filters_json=None)
+    except OpenProjectAPIError:
+        raise
+
+    projects_df = normalize_records(projects, schema_name="projects")
+    work_packages_df = normalize_records(work_packages, schema_name="work_packages")
+
+    return projects_df, work_packages_df

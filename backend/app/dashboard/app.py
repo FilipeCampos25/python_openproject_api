@@ -106,12 +106,11 @@ div[data-testid="InputInstructions"] * {
   display: none !important;
 }
 
-/* esconder UI do Streamlit */
-header[data-testid="stHeader"],
-div[data-testid="stToolbar"],
-div[data-testid="stAppToolbar"] {
-  display: none !important;
-  height: 0 !important;
+/* deixa o header discreto, mas visível para o toggle da sidebar */
+header[data-testid="stHeader"] {
+  background: transparent !important;
+  border-bottom: none !important;
+  height: 3rem !important;
 }
 
 /* coluna central do login */
@@ -200,19 +199,159 @@ div[data-testid="stAppToolbar"] {
   letter-spacing: 0.2px;
 }
 
+/* ===== App Header (pós-login) ===== */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 20px;
+  padding: 18px 6px 8px 6px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 6px auto;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+.app-logo {
+  width: 170px;
+  height: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  background: transparent;
+  filter: drop-shadow(0 8px 18px rgba(2,6,23,.14));
+}
+
+.app-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.app-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.app-subtitle {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.25px;
+}
+
+@media (max-width: 900px) {
+  .app-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  .app-title {
+    white-space: normal;
+    font-size: 30px;
+  }
+  .app-logo {
+    width: 140px;
+    height: 140px;
+  }
+}
+
 /* ===== Dashboard Cards ===== */
 .block-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  padding: 16px 18px;
-  box-shadow: var(--card-shadow);
-  margin-bottom: 18px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--card-border); /* linha fina */
+  border-radius: 0;
+  padding: 0;
+  margin: 18px 0;
+  box-shadow: none;
+  width: 100%;
 }
 
 .small-muted {
   color: #64748b;
   font-size: 0.92rem;
+}
+
+/* ===== Tabelas (DataFrame) ===== */
+.table-card {
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+  padding: 16px 16px 10px 16px;
+}
+
+.table-filters-title {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  text-align: center; !important;
+}
+
+.st-key-table_filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.st-key-table_filters .stRadio > div {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.st-key-table_filters .stRadio [role="radiogroup"] {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+div[data-testid="stDataFrame"] {
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  box-shadow: var(--card-shadow);
+  padding: 8px;
+}
+
+div[data-testid="stDataFrame"] table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+div[data-testid="stDataFrame"] thead th {
+  background: #f8fafc !important;
+  color: #334155 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+div[data-testid="stDataFrame"] tbody tr:nth-child(even) td {
+  background: #fbfdff !important;
+}
+
+div[data-testid="stDataFrame"] tbody tr:hover td {
+  background: #eef2ff !important;
 }
 
 /* ===== CARD (1 retângulo central) ===== */
@@ -426,29 +565,30 @@ def _safe_value_counts(df: pd.DataFrame, col: str) -> pd.DataFrame:
 
 
 STATUS_COLORS = {
-    "new": "#5B8FF9",
-    "open": "#5AD8A6",
-    "in progress": "#5D7092",
-    "on track": "#4E7FFF",
-    "closed": "#6DC8EC",
-    "done": "#7ADFA0",
-    "resolved": "#9AE6B4",
-    "rejected": "#F6BD16",
-    "blocked": "#E8684A",
-    "at risk": "#FF9845",
-    "specified": "#5D7092",
-    "in specification": "#6C6D6E",
-    "to be scheduled": "#9270CA",
-    "scheduled": "#2EC7C9",
-    "confirmed": "#4E7FFF",
+    "new": "#0077b6",              # Azul Oceano (Início limpo)
+    "open": "#019bb9",             # Turquesa Vivo (Aberto/Ativo)
+    "in progress": "#ff7b00",      # Âmbar (Ação/Atenção)
+    "on track": "#2d6a4f",         # Verde Floresta (Progresso Seguro)
+    "closed": "#1b4332",           # Verde Musgo (Finalizado/Sólido)
+    "done": "#52b788",             # Menta Escuro (Concluído)
+    "resolved": "#48cae4",         # Ciano Gelo (Resolvido)
+    "rejected": "#9b2226",         # Vermelho Sangue (Recusado/Parado)
+    "blocked": "#660708",          # Marrom Café (Bloqueio Total)
+    "at risk": "#ee9b00",          # Ouro Velho (Risco)
+    "specified": "#b23fff",        # Berinjela (Planejamento)
+    "in specification": "#6C3BFF", # Roxo Profundo (Detalhamento)
+    "to be scheduled": "#ffe600",  # Amarelo Mostarda (Aguardando)
+    "scheduled": "#023e8a",        # Azul Marinho (Comprometido)
+    "confirmed": "#00bfff",        # Azul Safira (Validado)
 }
+
 PRIORITY_COLORS = {
-    "low": "#73D13D",
-    "normal": "#5B8FF9",
-    "medium": "#597EF7",
-    "high": "#FAAD14",
-    "immediate": "#FF7A45",
-    "urgent": "#F5222D",
+    "low": "#74c69d",              # Verde Pálido (Baixo)
+    "normal": "#0077b6",           # Azul Médio (Normal)
+    "medium": "#fb8500",           # Laranja Queimado (Médio)
+    "high": "#e63946",             # Carmim (Alto)
+    "immediate": "#a4161a",        # Vermelho Escuro (Imediato)
+    "urgent": "#600001",           # Preto Avermelhado (Urgente)
 }
 
 
@@ -543,6 +683,71 @@ def _style_late_rows(row: pd.Series) -> list[str]:
     is_late = str(row.get("is_late", "")).strip().lower() in {"true", "1"}
     bg = "#fff1f2" if is_late else "#ffffff"
     return [f"background-color: {bg};" for _ in row.index]
+
+
+def _format_date(value: object) -> str:
+    if pd.isna(value):
+        return ""
+    try:
+        return pd.to_datetime(value).strftime("%d/%m/%Y")
+    except Exception:
+        return str(value)
+
+
+def _format_progress(value: object) -> str:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return ""
+    return f"{number:.0f}%"
+
+
+def _build_table_styler(df: pd.DataFrame, hide_cols: list[str], highlight_late: bool) -> pd.io.formats.style.Styler:
+    working = df.drop(columns=hide_cols, errors="ignore") if hide_cols else df
+    styler = working.style.hide(axis="index")
+
+    if "status" in working.columns:
+        styler = styler.map(_style_status, subset=["status"])
+    if "prioridade" in working.columns:
+        styler = styler.map(_style_priority, subset=["prioridade"])
+    if "progresso" in working.columns:
+        styler = styler.map(_style_done_ratio, subset=["progresso"])
+
+    if highlight_late:
+        styler = styler.apply(_style_late_rows, axis=1)
+
+    styler = styler.format(
+        {
+            "inicio": _format_date,
+            "fim": _format_date,
+            "progresso": _format_progress,
+        },
+        na_rep="",
+    )
+
+    styler = styler.set_table_styles(
+        [
+            {
+                "selector": "td",
+                "props": [
+                    ("border-bottom", "1px solid #e5e7eb"),
+                    ("padding", "10px 12px"),
+                    ("font-size", "13px"),
+                    ("color", "#0f172a"),
+                    ("white-space", "nowrap"),
+                ],
+            },
+            {
+                "selector": "td.col0",
+                "props": [
+                    ("font-weight", "700"),
+                    ("color", "#111827"),
+                ],
+            },
+        ]
+    )
+
+    return styler
 
 
 # =============================================================================
@@ -686,6 +891,25 @@ def _render_login_header(logo_path: Path) -> None:
       <div class="login-title">GESTÃO DE PROJETOS E PRODUTOS</div>
       <div class="login-subtitle">Acesso ao painel analítico</div>
     </div>
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_app_header(logo_path: Path) -> None:
+    logo_html = ""
+    if logo_path.exists():
+        logo_html = f"<img src='data:image/png;base64,{_img_to_base64(logo_path)}' alt='Logo'/>"
+
+    st.markdown(
+        f"""
+<div class="app-header">
+  <div class="app-logo">{logo_html}</div>
+  <div>
+    <div class="app-title">GESTÃO DE PROJETOS E PRODUTOS</div>
+    <div class="app-subtitle">Acesso ao painel analítico</div>
   </div>
 </div>
 """,
@@ -871,7 +1095,7 @@ def _render_distribution_charts(bundle: DataBundle) -> None:
     col1, col2 = st.columns(2, vertical_alignment="top")
 
     with col1:
-        st.markdown("<div class='block-card'>", unsafe_allow_html=True)
+        
         st.markdown("#### Distribuição por Status")
         status_df = _safe_value_counts(df, "wp_status")
         fig_status = px.pie(
@@ -889,7 +1113,6 @@ def _render_distribution_charts(bundle: DataBundle) -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
-        st.markdown("<div class='block-card'>", unsafe_allow_html=True)
         st.markdown("#### Volume por Prioridade")
         priority_df = _safe_value_counts(df, "wp_priority")
         fig_priority = px.bar(
@@ -1056,6 +1279,9 @@ def _render_tables(bundle: DataBundle) -> None:
         }
     )
 
+    if "is_late" in df.columns:
+        table["is_late"] = df["is_late"]
+
     late_df = _compute_late_df(df)
     if not late_df.empty:
         late_table = late_df[cols].copy().rename(
@@ -1070,19 +1296,34 @@ def _render_tables(bundle: DataBundle) -> None:
                 progress_col: "progresso",
             }
         )
+        if "is_late" in late_df.columns:
+            late_table["is_late"] = late_df["is_late"]
     else:
         late_table = pd.DataFrame()
 
     st.markdown("<div class='block-card'>", unsafe_allow_html=True)
     st.markdown("#### Planilha de Itens")
-    view_mode = st.radio("Exibir", ["Todos os itens", "Atrasados"], horizontal=True, index=0)
+    with st.container(key="table_filters"):
+        st.markdown("<div class='table-filters-title'>Exibir</div>", unsafe_allow_html=True)
+        view_mode = st.radio(
+            "Exibir",
+            ["Todos os itens", "Atrasados"],
+            horizontal=True,
+            index=0,
+            label_visibility="collapsed",
+        )
     if view_mode == "Atrasados":
         if late_table.empty:
             st.info("Nenhum item atrasado.")
         else:
-            st.dataframe(late_table, use_container_width=True, hide_index=True)
+            hide_cols = ["is_late"] if "is_late" in late_table.columns else []
+            styled = _build_table_styler(late_table, hide_cols=hide_cols, highlight_late=True)
+            st.dataframe(styled, use_container_width=True)
     else:
-        st.dataframe(table, use_container_width=True, hide_index=True)
+        hide_cols = ["is_late"] if "is_late" in table.columns else []
+        styled = _build_table_styler(table, hide_cols=hide_cols, highlight_late=True)
+        st.dataframe(styled, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -1104,6 +1345,9 @@ def _apply_filters(
 
 def main() -> None:
     _require_dashboard_authentication()
+
+    logo_path = Path(__file__).resolve().parent / "img" / "channels4_profile-removebg-preview.png"
+    _render_app_header(logo_path)
 
     # Sidebar + dados
     with st.sidebar:
