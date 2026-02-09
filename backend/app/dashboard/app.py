@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Iterable
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, JsCode
 
 import hashlib
 import secrets
@@ -21,6 +22,7 @@ import sys
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 # Garante que o pacote `app` (backend/app) seja importável
@@ -101,7 +103,6 @@ div[data-testid="stMainBlockContainer"] {
 div[data-testid="InputInstructions"] {
   display: none !important;
 }
-
 div[data-testid="InputInstructions"] * {
   display: none !important;
 }
@@ -175,9 +176,9 @@ header[data-testid="stHeader"] {
 }
 
 .stVerticalBlock{
-  display: flex; 
-  justify-content: center; 
-  align-items: center; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 @media (max-width: 720px) {
@@ -486,14 +487,6 @@ div[data-testid="stDataFrame"] tbody tr:hover td {
   text-align: center !important;
 }
 
-div[data-testid="InputInstructions"] {
-  display: none !important;
-}
-
-div[data-testid="InputInstructions"] * {
-  display: none !important;
-}
-
 /* Botão do olhinho: sai do fluxo e não "puxa" o input */
 .st-key-login_card_container div[data-testid="stTextInput"] button {
   position: absolute !important;
@@ -510,19 +503,15 @@ div[data-testid="InputInstructions"] * {
   background: transparent !important;
   box-shadow: none !important;
 }
-
 </style>
-
 """,
     unsafe_allow_html=True,
 )
-
 
 # =============================================================================
 # Plotly defaults
 # =============================================================================
 PX_TEMPLATE = "plotly_white"
-
 
 # =============================================================================
 # Data structures + loaders
@@ -590,7 +579,6 @@ STATUS_COLORS = {
     "specified": "#6D597A",
     "in specification": "#355070",
 }
-
 
 PRIORITY_COLORS = {
     "low": "#74C69D",
@@ -712,20 +700,31 @@ def _format_progress(value: object) -> str:
     return f"{number:.0f}%"
 
 
-def _build_table_styler(df: pd.DataFrame, hide_cols: list[str], highlight_late: bool) -> pd.io.formats.style.Styler:
+def _build_table_styler(
+    df: pd.DataFrame,
+    hide_cols: list[str],
+    highlight_late: bool,
+) -> pd.io.formats.style.Styler:
     working = df.drop(columns=hide_cols, errors="ignore") if hide_cols else df
+
+    # oculta índice
     styler = working.style.hide(axis="index")
 
+    # ✅ cores por célula (mais compatível que .map em alguns ambientes)
     if "status" in working.columns:
-        styler = styler.map(_style_status, subset=["status"])
-    if "prioridade" in working.columns:
-        styler = styler.map(_style_priority, subset=["prioridade"])
-    if "progresso" in working.columns:
-        styler = styler.map(_style_done_ratio, subset=["progresso"])
+        styler = styler.applymap(_style_status, subset=["status"])
 
+    if "prioridade" in working.columns:
+        styler = styler.applymap(_style_priority, subset=["prioridade"])
+
+    if "progresso" in working.columns:
+        styler = styler.applymap(_style_done_ratio, subset=["progresso"])
+
+    # ✅ destaque linha atrasada
     if highlight_late:
         styler = styler.apply(_style_late_rows, axis=1)
 
+    # ✅ formatação de datas e %
     styler = styler.format(
         {
             "inicio": _format_date,
@@ -735,6 +734,7 @@ def _build_table_styler(df: pd.DataFrame, hide_cols: list[str], highlight_late: 
         na_rep="",
     )
 
+    # ✅ acabamento geral (borda/espacamento)
     styler = styler.set_table_styles(
         [
             {
@@ -748,16 +748,22 @@ def _build_table_styler(df: pd.DataFrame, hide_cols: list[str], highlight_late: 
                 ],
             },
             {
-                "selector": "td.col0",
+                "selector": "th",
                 "props": [
-                    ("font-weight", "700"),
-                    ("color", "#111827"),
+                    ("background", "#f8fafc"),
+                    ("color", "#334155"),
+                    ("font-size", "12px"),
+                    ("font-weight", "800"),
+                    ("text-transform", "uppercase"),
+                    ("letter-spacing", "0.04em"),
+                    ("border-bottom", "1px solid #e2e8f0"),
                 ],
             },
         ]
     )
 
     return styler
+
 
 
 # =============================================================================
@@ -882,9 +888,8 @@ def _is_authenticated() -> bool:
 # =============================================================================
 def _img_to_base64(path: Path) -> str:
     import base64
+
     return base64.b64encode(path.read_bytes()).decode("utf-8")
-
-
 
 
 def _render_login_header(logo_path: Path) -> None:
@@ -982,25 +987,29 @@ def _require_dashboard_authentication() -> None:
 
     logo_path = Path(__file__).resolve().parent / "img" / "channels4_profile-removebg-preview.png"
 
-    # colunas só para centralizar (sem estreitar demais)
     left, center, right = st.columns([1, 3, 1], vertical_alignment="center")
     with center:
         with st.container(key="login_center_column"):
-            # marker mantido para compatibilidade com estrutura atual
             st.markdown("<div id='login_root'></div>", unsafe_allow_html=True)
 
-            # header acima do card
             _render_login_header(logo_path)
 
-            # card (container real com key para classe CSS estável)
             with st.container(key="login_card_container"):
                 with st.container(key="login_form_wrapper"):
-                    # fluxo inicial de admin (mantive)
                     if _count_users() == 0:
                         with st.form("bootstrap_admin_form", clear_on_submit=False):
-                            admin_username = st.text_input("admin_u", placeholder="usuario", label_visibility="collapsed")
-                            admin_password = st.text_input("admin_p", type="password", placeholder="senha", label_visibility="collapsed")
-                            admin_password_confirm = st.text_input("admin_pc", type="password", placeholder="confirmar senha", label_visibility="collapsed")
+                            admin_username = st.text_input(
+                                "admin_u", placeholder="usuario", label_visibility="collapsed"
+                            )
+                            admin_password = st.text_input(
+                                "admin_p", type="password", placeholder="senha", label_visibility="collapsed"
+                            )
+                            admin_password_confirm = st.text_input(
+                                "admin_pc",
+                                type="password",
+                                placeholder="confirmar senha",
+                                label_visibility="collapsed",
+                            )
                             submitted_admin = st.form_submit_button("entrar", use_container_width=False)
 
                         if submitted_admin:
@@ -1016,7 +1025,6 @@ def _require_dashboard_authentication() -> None:
 
                         st.stop()
 
-                    # login normal
                     with st.form("login_form", clear_on_submit=False):
                         username = st.text_input("u", placeholder="usuario", label_visibility="collapsed")
                         password = st.text_input("p", type="password", placeholder="senha", label_visibility="collapsed")
@@ -1037,17 +1045,13 @@ def _require_dashboard_authentication() -> None:
                     st.stop()
 
 
-
 # =============================================================================
 # Dashboard UI
 # =============================================================================
 def _render_header() -> None:
     col1, col2 = st.columns([3, 1], vertical_alignment="center")
     with col1:
-        st.markdown(
-            "<div class='dashboard-title'>Painel de Controle de Projetos</div>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("<div class='dashboard-title'>Painel de Controle de Projetos</div>", unsafe_allow_html=True)
         st.markdown(
             "<div class='small-muted'>Acompanhamento de entregas, prazos e produtividade.</div>",
             unsafe_allow_html=True,
@@ -1063,7 +1067,11 @@ def _render_header() -> None:
 def _render_kpis(bundle: DataBundle) -> None:
     df = bundle.work_packages
 
-    total_projects = bundle.projects["project_id"].nunique() if not bundle.projects.empty and "project_id" in bundle.projects.columns else 0
+    total_projects = (
+        bundle.projects["project_id"].nunique()
+        if not bundle.projects.empty and "project_id" in bundle.projects.columns
+        else 0
+    )
     total_wps = df["wp_id"].nunique() if not df.empty and "wp_id" in df.columns else 0
 
     closed_statuses = {"Closed", "Rejected", "Concluído", "Finalizado"}
@@ -1107,7 +1115,6 @@ def _render_distribution_charts(bundle: DataBundle) -> None:
     col1, col2 = st.columns(2, vertical_alignment="top")
 
     with col1:
-        
         st.markdown("#### Distribuição por Status")
         status_df = _safe_value_counts(df, "wp_status")
         fig_status = px.pie(
@@ -1116,10 +1123,7 @@ def _render_distribution_charts(bundle: DataBundle) -> None:
             names="wp_status",
             hole=0.5,
             template=PX_TEMPLATE,
-            labels={
-                "wp_status": "Status",
-                "count": "Quantidade",
-            },
+            labels={"wp_status": "Status", "count": "Quantidade"},
             color="wp_status",
             color_discrete_map=_build_color_map(status_df["wp_status"].tolist(), STATUS_COLORS),
         )
@@ -1129,7 +1133,6 @@ def _render_distribution_charts(bundle: DataBundle) -> None:
         fig_status.update_traces(textposition="inside", textinfo="percent")
         fig_status.update_layout(showlegend=True, margin=dict(t=10, b=10, l=10, r=10))
         st.plotly_chart(fig_status, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
         st.markdown("#### Volume por Prioridade")
@@ -1140,18 +1143,17 @@ def _render_distribution_charts(bundle: DataBundle) -> None:
             y="count",
             template=PX_TEMPLATE,
             color="wp_priority",
-            labels={
-                "wp_priority": "Prioridade",
-                "count": "Quantidade",
-            },
+            labels={"wp_priority": "Prioridade", "count": "Quantidade"},
             color_discrete_map=_build_color_map(priority_df["wp_priority"].tolist(), PRIORITY_COLORS),
         )
-        fig_priority.update_traces(
-            hovertemplate="Prioridade: %{x}<br>Quantidade: %{y}<extra></extra>"
+        fig_priority.update_traces(hovertemplate="Prioridade: %{x}<br>Quantidade: %{y}<extra></extra>")
+        fig_priority.update_layout(
+            xaxis_title="",
+            yaxis_title="Quantidade",
+            showlegend=False,
+            margin=dict(t=10, b=0, l=0, r=0),
         )
-        fig_priority.update_layout(xaxis_title="", yaxis_title="Quantidade", showlegend=False, margin=dict(t=10, b=0, l=0, r=0))
         st.plotly_chart(fig_priority, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _first_existing(columns: Iterable[str], candidates: Iterable[str]) -> str | None:
@@ -1170,34 +1172,13 @@ def _build_gantt_df(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame()
 
-    start_col = _first_existing(
-        df.columns,
-        ["wp_start_date", "start_date", "start", "created_at"],
-    )
-    end_col = _first_existing(
-        df.columns,
-        ["wp_due_date", "due_date", "finish_date", "end_date"],
-    )
-    name_col = _first_existing(
-        df.columns,
-        ["wp_subject", "subject", "title", "name"],
-    )
-    status_col = _first_existing(
-        df.columns,
-        ["wp_status", "status"],
-    )
-    project_col = _first_existing(
-        df.columns,
-        ["project_name", "project"],
-    )
-    assignee_col = _first_existing(
-        df.columns,
-        ["assignee", "assigned_to", "responsible", "wp_assignee"],
-    )
-    progress_col = _first_existing(
-        df.columns,
-        ["done_ratio", "progress"],
-    )
+    start_col = _first_existing(df.columns, ["wp_start_date", "start_date", "start", "created_at"])
+    end_col = _first_existing(df.columns, ["wp_due_date", "due_date", "finish_date", "end_date"])
+    name_col = _first_existing(df.columns, ["wp_subject", "subject", "title", "name"])
+    status_col = _first_existing(df.columns, ["wp_status", "status"])
+    project_col = _first_existing(df.columns, ["project_name", "project"])
+    assignee_col = _first_existing(df.columns, ["assignee", "assigned_to", "responsible", "wp_assignee"])
+    progress_col = _first_existing(df.columns, ["done_ratio", "progress"])
 
     if not start_col or not end_col or not name_col:
         return pd.DataFrame()
@@ -1218,6 +1199,9 @@ def _build_gantt_df(df: pd.DataFrame) -> pd.DataFrame:
     return gantt[["task", "start", "end", "status", "project", "assignee", "progress"]]
 
 
+# =============================================================================
+# Gantt (Plotly GO + shapes)  ✅ item 1 implementado aqui
+# =============================================================================
 def _render_gantt(bundle: DataBundle) -> None:
     df = _build_gantt_df(bundle.work_packages)
     if df.empty:
@@ -1227,6 +1211,7 @@ def _render_gantt(bundle: DataBundle) -> None:
     st.markdown("<div class='block-card'>", unsafe_allow_html=True)
     st.markdown("#### Gantt de Work Packages")
 
+    # timeline base
     fig = px.timeline(
         df,
         x_start="start",
@@ -1251,10 +1236,36 @@ def _render_gantt(bundle: DataBundle) -> None:
             "end": "|%d/%m/%Y",
         },
     )
+
+    # barras "de cima para baixo"
     fig.update_yaxes(autorange="reversed")
-    fig.update_layout(height=520, margin=dict(t=10, b=10, l=10, r=10))
+
+    # ✅ linha de "hoje"
+    today = pd.Timestamp(date.today())
+    fig.add_vline(
+        x=today,
+        line_width=2,
+        line_dash="dot",
+        line_color="rgba(15,23,42,0.55)",
+    )
+
+    # ✅ remove a “aba inferior” (rangeslider) + remove os botões
+    fig.update_layout(
+        height=520,
+        margin=dict(t=10, b=10, l=10, r=10),
+        xaxis=dict(
+            title="",
+            rangeslider=dict(visible=False),  # <<< remove a barra inferior
+            rangeselector=None,               # <<< remove botões (7d/14d/1m/...)
+        ),
+    )
+
+    # reforço extra (algumas versões usam esse atalho)
+    fig.update_xaxes(rangeslider_visible=False)
+
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 def _compute_late_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -1284,6 +1295,10 @@ def _compute_late_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _render_tables(bundle: DataBundle) -> None:
+    if AgGrid is None:
+        st.error("streamlit-aggrid não está instalado. Rode: pip install streamlit-aggrid")
+        st.stop()
+
     df = bundle.work_packages
     if df.empty:
         st.warning("Sem dados para tabelas.")
@@ -1314,8 +1329,11 @@ def _render_tables(bundle: DataBundle) -> None:
         }
     )
 
+    # Coluna Atrasado (para filtro/estilo)
     if "is_late" in df.columns:
-        table["is_late"] = df["is_late"]
+        table["Atrasado"] = df["is_late"].astype(str).str.lower().isin({"true", "1"}).map({True: "Sim", False: "Não"})
+    else:
+        table["Atrasado"] = "Não"
 
     late_df = _compute_late_df(df)
     if not late_df.empty:
@@ -1331,13 +1349,13 @@ def _render_tables(bundle: DataBundle) -> None:
                 progress_col: "progresso",
             }
         )
-        if "is_late" in late_df.columns:
-            late_table["is_late"] = late_df["is_late"]
+        late_table["Atrasado"] = "Sim"
     else:
         late_table = pd.DataFrame()
 
     st.markdown("<div class='block-card'>", unsafe_allow_html=True)
     st.markdown("#### Planilha de Itens")
+
     with st.container(key="table_filters"):
         st.markdown("<div class='table-filters-title'>Exibir</div>", unsafe_allow_html=True)
         view_mode = st.radio(
@@ -1347,19 +1365,158 @@ def _render_tables(bundle: DataBundle) -> None:
             index=0,
             label_visibility="collapsed",
         )
+
+    quick_filter = st.text_input("Buscar na tabela", value="", key="aggrid_quick_filter")
+
+    # ---- JS para cores (status/prioridade/progresso) usando sua paleta python ----
+    # Mapa python -> JS (string)
+    status_js_map = {k: v for k, v in STATUS_COLORS.items()}
+    priority_js_map = {k: v for k, v in PRIORITY_COLORS.items()}
+
+    cellstyle_js = JsCode(
+        f"""
+        function(params) {{
+            const col = params.colDef.field;
+            if (!params.value) return null;
+
+            function norm(v) {{
+                return ('' + v).trim().toLowerCase();
+            }}
+
+            const statusColors = {status_js_map};
+            const priorityColors = {priority_js_map};
+
+            // Status
+            if (col === 'status') {{
+                const key = norm(params.value);
+                const bg = statusColors[key];
+                if (!bg) return null;
+                // texto branco ou escuro depende do fundo (simples)
+                return {{
+                    backgroundColor: bg,
+                    color: '#ffffff',
+                    fontWeight: '700',
+                    borderRadius: '10px',
+                    display: 'inline-block',
+                    padding: '6px 10px',
+                    textAlign: 'center'
+                }};
+            }}
+
+            // Prioridade
+            if (col === 'prioridade') {{
+                const key = norm(params.value);
+                const bg = priorityColors[key];
+                if (!bg) return null;
+                return {{
+                    backgroundColor: bg,
+                    color: '#ffffff',
+                    fontWeight: '700',
+                    borderRadius: '10px',
+                    display: 'inline-block',
+                    padding: '6px 10px',
+                    textAlign: 'center'
+                }};
+            }}
+
+            // Progresso (coloração por faixa)
+            if (col === 'progresso') {{
+                const raw = ('' + params.value).replace('%','');
+                const v = parseFloat(raw);
+                if (isNaN(v)) return null;
+                let bg = '#f3f4f6';
+                if (v < 40) bg = '#fee2e2';
+                else if (v < 80) bg = '#fef3c7';
+                else bg = '#dcfce7';
+                return {{
+                    backgroundColor: bg,
+                    color: '#111827',
+                    fontWeight: '800',
+                    borderRadius: '10px',
+                    display: 'inline-block',
+                    padding: '6px 10px',
+                    textAlign: 'center'
+                }};
+            }}
+
+            return null;
+        }}
+        """
+    )
+
+    rowstyle_js = JsCode(
+        """
+        function(params) {
+            if (params.data && params.data.Atrasado === 'Sim') {
+                return { backgroundColor: '#fff1f2' };
+            }
+            return {};
+        }
+        """
+    )
+
+    def _render_aggrid(display_df: pd.DataFrame) -> None:
+        gb = GridOptionsBuilder.from_dataframe(display_df)
+
+        # Colunas padrão
+        gb.configure_default_column(
+            filter=True,
+            sortable=True,
+            resizable=True,
+            wrapText=False,
+            autoHeight=False,
+        )
+
+        # Aplica estilos nas colunas específicas (se existirem)
+        if "status" in display_df.columns:
+            gb.configure_column("status", cellStyle=cellstyle_js)
+        if "prioridade" in display_df.columns:
+            gb.configure_column("prioridade", cellStyle=cellstyle_js)
+        if "progresso" in display_df.columns:
+            gb.configure_column("progresso", cellStyle=cellstyle_js)
+        if "Atrasado" in display_df.columns:
+            gb.configure_column("Atrasado", width=110, filter=True)
+
+        # Build
+        grid_options = gb.build()
+
+        # Quick filter
+        if quick_filter:
+            grid_options["quickFilterText"] = quick_filter
+
+        # Paginação SEM configure_pagination (compat com versões antigas)
+        grid_options["pagination"] = True
+        grid_options["paginationPageSize"] = 20
+
+        # Linha destacada (atrasado)
+        grid_options["getRowStyle"] = rowstyle_js
+
+        # Visual mais limpo (sem sidebar do AG Grid)
+        grid_options["suppressMenuHide"] = True
+        grid_options["suppressAggFuncInHeader"] = True
+
+        AgGrid(
+            display_df,
+            gridOptions=grid_options,
+            update_mode=GridUpdateMode.NO_UPDATE,
+            data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+            allow_unsafe_jscode=True,
+            fit_columns_on_grid_load=True,
+            height=520,
+            theme="alpine",
+        )
+
     if view_mode == "Atrasados":
         if late_table.empty:
             st.info("Nenhum item atrasado.")
         else:
-            hide_cols = ["is_late"] if "is_late" in late_table.columns else []
-            styled = _build_table_styler(late_table, hide_cols=hide_cols, highlight_late=True)
-            st.dataframe(styled, use_container_width=True)
+            _render_aggrid(late_table)
     else:
-        hide_cols = ["is_late"] if "is_late" in table.columns else []
-        styled = _build_table_styler(table, hide_cols=hide_cols, highlight_late=True)
-        st.dataframe(styled, use_container_width=True)
+        _render_aggrid(table)
+
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 def _apply_filters(
@@ -1412,7 +1569,11 @@ def main() -> None:
                 users_df = users_df.rename(
                     columns={"username": "usuario", "is_admin": "admin", "is_active": "ativo", "created_at": "criado_em"}
                 )
-                st.dataframe(users_df[["usuario", "admin", "ativo", "criado_em"]], use_container_width=True, hide_index=True)
+                st.dataframe(
+                    users_df[["usuario", "admin", "ativo", "criado_em"]],
+                    use_container_width=True,
+                    hide_index=True,
+                )
             st.divider()
 
         data_mode = st.radio("Fonte de Dados", ["API (Tempo Real)", "CSV Local"], index=1)
@@ -1436,9 +1597,13 @@ def main() -> None:
         st.header("Filtros")
         wp_df = bundle.work_packages
 
-        project_options = sorted(wp_df["project_name"].dropna().unique().tolist()) if "project_name" in wp_df.columns else []
+        project_options = (
+            sorted(wp_df["project_name"].dropna().unique().tolist()) if "project_name" in wp_df.columns else []
+        )
         status_options = sorted(wp_df["wp_status"].dropna().unique().tolist()) if "wp_status" in wp_df.columns else []
-        priority_options = sorted(wp_df["wp_priority"].dropna().unique().tolist()) if "wp_priority" in wp_df.columns else []
+        priority_options = (
+            sorted(wp_df["wp_priority"].dropna().unique().tolist()) if "wp_priority" in wp_df.columns else []
+        )
 
         project_filter = st.multiselect("Projetos", project_options)
         status_filter = st.multiselect("Status", status_options)
