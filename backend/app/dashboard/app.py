@@ -21,6 +21,8 @@ import sys
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+import plotly.io as pio
 import streamlit as st
 
 # Garante que o pacote `app` (backend/app) seja importável
@@ -521,7 +523,7 @@ div[data-testid="InputInstructions"] * {
 # =============================================================================
 # Plotly defaults
 # =============================================================================
-PX_TEMPLATE = "plotly_white"
+PX_TEMPLATE = "premium"
 
 
 # =============================================================================
@@ -573,37 +575,140 @@ def _safe_value_counts(df: pd.DataFrame, col: str) -> pd.DataFrame:
         df[col].fillna("N/A").astype(str).value_counts().reset_index(name="count").rename(columns={"index": col})
     )
 
-
 STATUS_COLORS = {
-    "new": "#096292",              # Azul Oceano (Início limpo)
-    "open": "#019bb9",             # Turquesa Vivo (Aberto/Ativo)
-    "in progress": "#ff7b00",      # Âmbar (Ação/Atenção)
-    "on track": "#2d6a4f",         # Verde Floresta (Progresso Seguro)
-    "closed": "#1b4332",           # Verde Musgo (Finalizado/Sólido)
-    "done": "#52b788",             # Menta Escuro (Concluído)
-    "resolved": "#48cae4",         # Ciano Gelo (Resolvido)
-    "rejected": "#9b2226",         # Vermelho Sangue (Recusado/Parado)
-    "blocked": "#660708",          # Marrom Café (Bloqueio Total)
-    "at risk": "#ee9b00",          # Ouro Velho (Risco)
-    "specified": "#b23fff",        # Berinjela (Planejamento)
-    "in specification": "#6C3BFF", # Roxo Profundo (Detalhamento)
-    "to be scheduled": "#ffe600",  # Amarelo Mostarda (Aguardando)
-    "scheduled": "#023e8a",        # Azul Marinho (Comprometido)
-    "confirmed": "#00bfff",        # Azul Safira (Validado)
+    "new": "#3A506B",
+    "open": "#1D3557",
+    "in progress": "#F4A261",
+    "on track": "#2A9D8F",
+    "at risk": "#E9C46A",
+    "blocked": "#9B2226",
+    "rejected": "#6A040F",
+    "done": "#52B788",
+    "closed": "#264653",
+    "resolved": "#457B9D",
+    "scheduled": "#277DA1",
+    "confirmed": "#4CC9F0",
+    "specified": "#6D597A",
+    "in specification": "#355070",
 }
+
 
 PRIORITY_COLORS = {
-    "low": "#74c69d",              # Verde Pálido (Baixo)
-    "normal": "#0077b6",           # Azul Médio (Normal)
-    "medium": "#fb8500",           # Laranja Queimado (Médio)
-    "high": "#e63946",             # Carmim (Alto)
-    "immediate": "#a4161a",        # Vermelho Escuro (Imediato)
-    "urgent": "#600001",           # Preto Avermelhado (Urgente)
+    "low": "#74C69D",
+    "normal": "#457B9D",
+    "medium": "#F4A261",
+    "high": "#E63946",
+    "urgent": "#9B2226",
+    "immediate": "#6A040F",
 }
+
+STATUS_TRANSLATIONS = {
+    "new": "Novo",
+    "open": "Aberto",
+    "in progress": "Em progresso",
+    "on track": "No prazo",
+    "at risk": "Em risco",
+    "blocked": "Bloqueado",
+    "rejected": "Rejeitado",
+    "done": "Concluído",
+    "closed": "Fechado",
+    "resolved": "Resolvido",
+    "scheduled": "Agendado",
+    "confirmed": "Confirmado",
+    "specified": "Especificado",
+    "in specification": "Em especificação",
+}
+
+PRIORITY_TRANSLATIONS = {
+    "low": "Baixa",
+    "normal": "Normal",
+    "medium": "Média",
+    "high": "Alta",
+    "urgent": "Urgente",
+    "immediate": "Imediata",
+}
+
+
+def _apply_plotly_premium_theme() -> None:
+    base = pio.templates["plotly_white"]
+    premium = go.layout.Template(base)
+    premium.layout.update(
+        font=dict(
+            family="IBM Plex Sans, Segoe UI, Arial, sans-serif",
+            size=13,
+            color="#0f172a",
+        ),
+        title_font=dict(family="IBM Plex Sans, Segoe UI, Arial, sans-serif", size=18, color="#0f172a"),
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#f8fafc",
+        colorway=[
+            "#1D3557",
+            "#2A9D8F",
+            "#F4A261",
+            "#E9C46A",
+            "#457B9D",
+            "#6D597A",
+            "#9B2226",
+            "#4CC9F0",
+            "#277DA1",
+            "#52B788",
+        ],
+        xaxis=dict(
+            showgrid=True,
+            gridcolor="#e5e7eb",
+            zerolinecolor="#e5e7eb",
+            ticks="outside",
+            tickfont=dict(size=12, color="#334155"),
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor="#e5e7eb",
+            zerolinecolor="#e5e7eb",
+            ticks="outside",
+            tickfont=dict(size=12, color="#334155"),
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            bgcolor="rgba(255,255,255,0.7)",
+            bordercolor="#e5e7eb",
+            borderwidth=1,
+            font=dict(size=11, color="#334155"),
+            title_text="",
+        ),
+        hoverlabel=dict(
+            bgcolor="#ffffff",
+            bordercolor="#e5e7eb",
+            font=dict(color="#0f172a", size=12),
+        ),
+        margin=dict(t=36, b=24, l=24, r=24),
+    )
+    pio.templates["premium"] = premium
+
+
+_apply_plotly_premium_theme()
+
 
 
 def _norm_text(value: object) -> str:
     return str(value).strip().lower() if value is not None else ""
+
+
+def _translate_status(value: object) -> str:
+    raw = "" if value is None else str(value).strip()
+    if not raw:
+        return "N/A"
+    return STATUS_TRANSLATIONS.get(raw.lower(), raw)
+
+
+def _translate_priority(value: object) -> str:
+    raw = "" if value is None else str(value).strip()
+    if not raw:
+        return "N/A"
+    return PRIORITY_TRANSLATIONS.get(raw.lower(), raw)
 
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
@@ -1107,35 +1212,65 @@ def _render_distribution_charts(bundle: DataBundle) -> None:
     col1, col2 = st.columns(2, vertical_alignment="top")
 
     with col1:
-        
         st.markdown("#### Distribuição por Status")
         status_df = _safe_value_counts(df, "wp_status")
-        fig_status = px.pie(
+        status_df["status_pt"] = status_df["wp_status"].apply(_translate_status)
+        status_df = status_df.sort_values("count", ascending=True)
+
+        status_color_map: dict[str, str] = {}
+        for raw, translated in status_df[["wp_status", "status_pt"]].drop_duplicates().itertuples(index=False):
+            if translated not in status_color_map:
+                status_color_map[translated] = _status_color(raw)
+
+        fig_status = px.bar(
             status_df,
-            values="count",
-            names="wp_status",
-            hole=0.5,
+            x="count",
+            y="status_pt",
+            orientation="h",
             template=PX_TEMPLATE,
-            color="wp_status",
-            color_discrete_map=_build_color_map(status_df["wp_status"].tolist(), STATUS_COLORS),
+            color="status_pt",
+            color_discrete_map=status_color_map,
         )
-        fig_status.update_traces(textposition="inside", textinfo="percent")
-        fig_status.update_layout(showlegend=True, margin=dict(t=10, b=10, l=10, r=10))
+        fig_status.update_traces(
+            hovertemplate="Status: %{y}<br>Quantidade: %{x}<extra></extra>",
+        )
+        fig_status.update_layout(
+            xaxis_title="Quantidade",
+            yaxis_title="",
+            showlegend=False,
+            margin=dict(t=10, b=10, l=10, r=10),
+        )
         st.plotly_chart(fig_status, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
         st.markdown("#### Volume por Prioridade")
         priority_df = _safe_value_counts(df, "wp_priority")
+        priority_df["priority_pt"] = priority_df["wp_priority"].apply(_translate_priority)
+        priority_df = priority_df.sort_values("count", ascending=False)
+
+        priority_color_map: dict[str, str] = {}
+        for raw, translated in priority_df[["wp_priority", "priority_pt"]].drop_duplicates().itertuples(index=False):
+            if translated not in priority_color_map:
+                priority_color_map[translated] = _priority_color(raw)
+
         fig_priority = px.bar(
             priority_df,
-            x="wp_priority",
+            x="priority_pt",
             y="count",
             template=PX_TEMPLATE,
-            color="wp_priority",
-            color_discrete_map=_build_color_map(priority_df["wp_priority"].tolist(), PRIORITY_COLORS),
+            color="priority_pt",
+            color_discrete_map=priority_color_map,
         )
-        fig_priority.update_layout(xaxis_title="", yaxis_title="Quantidade", showlegend=False, margin=dict(t=10, b=0, l=0, r=0))
+        fig_priority.update_traces(
+            hovertemplate="Prioridade: %{x}<br>Quantidade: %{y}<extra></extra>",
+        )
+        fig_priority.update_layout(
+            xaxis_title="",
+            yaxis_title="Quantidade",
+            showlegend=False,
+            margin=dict(t=10, b=0, l=0, r=0),
+        )
         st.plotly_chart(fig_priority, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1213,23 +1348,71 @@ def _render_gantt(bundle: DataBundle) -> None:
     st.markdown("<div class='block-card'>", unsafe_allow_html=True)
     st.markdown("#### Gantt de Work Packages")
 
+    df = df.copy()
+    df["status_pt"] = df["status"].apply(_translate_status)
+    df["project"] = df["project"].fillna("N/A")
+    df["assignee"] = df["assignee"].fillna("N/A")
+    df["progress"] = pd.to_numeric(df["progress"], errors="coerce").fillna(0)
+    df["start_br"] = df["start"].dt.strftime("%d/%m/%Y")
+    df["end_br"] = df["end"].dt.strftime("%d/%m/%Y")
+    df["progress_br"] = df["progress"].map(lambda v: f"{v:.0f}%")
+
+    df = df.sort_values(["start", "end", "task"], ascending=[True, True, True]).reset_index(drop=True)
+    task_order = df["task"].tolist()
+
+    status_color_map: dict[str, str] = {}
+    for raw, translated in df[["status", "status_pt"]].drop_duplicates().itertuples(index=False):
+        if translated not in status_color_map:
+            status_color_map[translated] = _status_color(raw)
+
     fig = px.timeline(
         df,
         x_start="start",
         x_end="end",
         y="task",
-        color="status",
-        color_discrete_map=_status_color_map(df["status"].unique().tolist()),
-        hover_data={
-            "project": True,
-            "assignee": True,
-            "progress": True,
-            "start": True,
-            "end": True,
-        },
+        color="status_pt",
+        color_discrete_map=status_color_map,
+        custom_data=["status_pt", "project", "assignee", "start_br", "end_br", "progress_br"],
+        template=PX_TEMPLATE,
     )
-    fig.update_yaxes(autorange="reversed")
-    fig.update_layout(height=520, margin=dict(t=10, b=10, l=10, r=10))
+    fig.update_traces(
+        hovertemplate=(
+            "<b>%{y}</b><br>"
+            "Status: %{customdata[0]}<br>"
+            "Projeto: %{customdata[1]}<br>"
+            "Responsável: %{customdata[2]}<br>"
+            "Início: %{customdata[3]}<br>"
+            "Fim: %{customdata[4]}<br>"
+            "Progresso: %{customdata[5]}<extra></extra>"
+        )
+    )
+    fig.update_yaxes(
+        autorange="reversed",
+        categoryorder="array",
+        categoryarray=task_order,
+        title="",
+    )
+    fig.update_xaxes(
+        tickformat="%d/%m/%Y",
+        title="Linha do tempo",
+    )
+    height = max(360, min(120 + 32 * len(task_order), 900))
+    fig.update_layout(
+        height=height,
+        margin=dict(t=10, b=10, l=10, r=10),
+        legend_title_text="Status",
+    )
+    today_line = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    fig.add_vline(
+        x=today_line,
+        line_width=2,
+        line_dash="dot",
+        line_color="#ef4444",
+        annotation_text="Hoje",
+        annotation_position="top right",
+        annotation_font_size=12,
+        annotation_font_color="#ef4444",
+    )
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
