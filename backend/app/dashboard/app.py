@@ -1455,67 +1455,172 @@ def _render_tables(bundle: DataBundle) -> None:
         """
     )
 
-    def _render_aggrid(display_df: pd.DataFrame) -> None:
-        gb = GridOptionsBuilder.from_dataframe(display_df)
+    display_df = table if view_mode == "Todos os itens" else late_table
+    if display_df.empty:
+        st.info("Sem itens para exibir.")
+    else:
+        _render_aggrid(display_df, quick_filter=quick_filter)
 
-        # Colunas padrão
-        gb.configure_default_column(
-            filter=True,
-            sortable=True,
-            resizable=True,
-            wrapText=False,
-            autoHeight=False,
-        )
+    st.markdown("</div>", unsafe_allow_html=True)
 
-        # Aplica estilos nas colunas específicas (se existirem)
-        if "status" in display_df.columns:
-            gb.configure_column("status", cellStyle=cellstyle_js)
-        if "prioridade" in display_df.columns:
-            gb.configure_column("prioridade", cellStyle=cellstyle_js)
-        if "progresso" in display_df.columns:
-            gb.configure_column("progresso", cellStyle=cellstyle_js)
-        if "Atrasado" in display_df.columns:
-            gb.configure_column("Atrasado", width=110, filter=True)
 
-        # Build
-        grid_options = gb.build()
+def _render_aggrid(display_df: pd.DataFrame, quick_filter: str | None = None) -> None:
+    # --- FIX: evita [object Object] em datas (inicio/fim) ---
+    df_show = display_df.copy()
+    for c in ["inicio", "fim"]:
+        if c in df_show.columns:
+            df_show[c] = pd.to_datetime(df_show[c], errors="coerce").dt.strftime("%d/%m/%Y").fillna("")
 
-        # Quick filter
+    gb = GridOptionsBuilder.from_dataframe(df_show)
+    gb.configure_default_column(filter=True, sortable=True, resizable=True)
+
+    # paginação compatível com diferentes versões
+    try:
+        gb.configure_pagination(paginationAutoPageSize=True)
+    except TypeError:
+        try:
+            gb.configure_pagination(paginationAutoPageSize=True, pagination=True)
+        except TypeError:
+            gb.configure_pagination(paginationPageSize=20)
+
+    # --- Estilo mais "sóbrio" (sem chip arredondado, com opacidade) ---
+    status_style = JsCode(
+        """
+        function(params) {
+          const v = (params.value || '').toString().trim().toLowerCase();
+
+          // cores base (suas cores, mas vamos aplicar alpha baixo)
+          const base = {
+            "new": [58, 80, 107],
+            "open": [29, 53, 87],
+            "in progress": [244, 162, 97],
+            "on track": [42, 157, 143],
+            "at risk": [233, 196, 106],
+            "blocked": [155, 34, 38],
+            "rejected": [106, 4, 15],
+            "done": [82, 183, 136],
+            "closed": [38, 70, 83],
+            "resolved": [69, 123, 157],
+            "scheduled": [39, 125, 161],
+            "confirmed": [76, 201, 240],
+            "specified": [109, 89, 122],
+            "in specification": [53, 80, 112]
+          };
+
+          const rgb = base[v] || [156, 163, 175];
+
+          // alpha baixo = mais sofisticado
+          const bg = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.14)`;
+          const bd = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.25)`;
+          const tx = `rgba(15, 23, 42, 0.92)`; // sempre escuro/sóbrio
+
+          return {
+            backgroundColor: bg,
+            border: `1px solid ${bd}`,
+            color: tx,
+            fontWeight: 600,
+            borderRadius: "0px",
+            padding: "2px 8px"
+          };
+        }
+        """
+    )
+
+    priority_style = JsCode(
+        """
+        function(params) {
+          const v = (params.value || '').toString().trim().toLowerCase();
+
+          const base = {
+            "low": [116, 198, 157],
+            "normal": [69, 123, 157],
+            "medium": [244, 162, 97],
+            "high": [230, 57, 70],
+            "urgent": [155, 34, 38],
+            "immediate": [106, 4, 15]
+          };
+
+          const rgb = base[v] || [156, 163, 175];
+
+          const bg = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.14)`;
+          const bd = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.25)`;
+          const tx = `rgba(15, 23, 42, 0.92)`;
+
+          return {
+            backgroundColor: bg,
+            border: `1px solid ${bd}`,
+            color: tx,
+            fontWeight: 600,
+            borderRadius: "0px",
+            padding: "2px 8px"
+          };
+        }
+        """
+    )
+
+    # aplica style só nessas colunas (mantém o resto clean)
+    if "status" in df_show.columns:
+        gb.configure_column("status", cellStyle=status_style)
+    if "prioridade" in df_show.columns:
+        gb.configure_column("prioridade", cellStyle=priority_style)
+
+    # linha atrasada com fundo MUITO leve (menos gritante)
+    row_style = JsCode(
+        """
+        function(params) {
+          if (params.data && params.data.Atrasado === 'Sim') {
+            return { background: 'rgba(239, 68, 68, 0.06)' }; // vermelho bem sutil
+          }
+          return {};
+        }
+        """
+    )
+
+    grid_options = gb.build()
+
+    # quick filter (se você estiver usando)
+    try:
         if quick_filter:
             grid_options["quickFilterText"] = quick_filter
+    except Exception:
+        pass
 
-        # Paginação SEM configure_pagination (compat com versões antigas)
-        grid_options["pagination"] = True
-        grid_options["paginationPageSize"] = 20
+    grid_options["getRowStyle"] = row_style
 
-        # Linha destacada (atrasado)
-        grid_options["getRowStyle"] = rowstyle_js
+    # deixa visual mais “flat” (opcional: melhora muito)
+    st.markdown(
+        """
+        <style>
+          /* remove arredondado do grid */
+          .ag-root-wrapper, .ag-root-wrapper-body, .ag-header, .ag-row, .ag-cell {
+            border-radius: 0 !important;
+          }
+          /* header mais sóbrio */
+          .ag-header-cell-label {
+            font-weight: 800 !important;
+            letter-spacing: .04em !important;
+            text-transform: uppercase !important;
+            color: rgba(51, 65, 85, 0.95) !important;
+          }
+          /* linhas mais limpas */
+          .ag-row {
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+          }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-        # Visual mais limpo (sem sidebar do AG Grid)
-        grid_options["suppressMenuHide"] = True
-        grid_options["suppressAggFuncInHeader"] = True
+    AgGrid(
+        df_show,
+        gridOptions=grid_options,
+        update_mode=GridUpdateMode.NO_UPDATE,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+        allow_unsafe_jscode=True,
+        fit_columns_on_grid_load=False,
+        theme="alpine",
+    )
 
-        AgGrid(
-            display_df,
-            gridOptions=grid_options,
-            update_mode=GridUpdateMode.NO_UPDATE,
-            data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-            allow_unsafe_jscode=True,
-            fit_columns_on_grid_load=True,
-            height=520,
-            theme="alpine",
-        )
-
-    if view_mode == "Atrasados":
-        if late_table.empty:
-            st.info("Nenhum item atrasado.")
-        else:
-            _render_aggrid(late_table)
-    else:
-        _render_aggrid(table)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 
@@ -1524,6 +1629,15 @@ def _apply_filters(
     project_filter: Iterable[str],
     status_filter: Iterable[str],
     priority_filter: Iterable[str],
+    type_filter: Iterable[str],
+    assignee_filter: Iterable[str],
+    author_filter: Iterable[str],
+    progress_range: tuple[int, int] | None,
+    start_date_range: tuple[date, date] | None,
+    due_date_range: tuple[date, date] | None,
+    late_only: bool,
+    search_text: str | None,
+    keep_items_without_dates: bool = True,
 ) -> DataBundle:
     wps = bundle.work_packages.copy()
     if project_filter and "project_name" in wps.columns:
@@ -1532,6 +1646,46 @@ def _apply_filters(
         wps = wps[wps["wp_status"].isin(status_filter)]
     if priority_filter and "wp_priority" in wps.columns:
         wps = wps[wps["wp_priority"].isin(priority_filter)]
+    if type_filter and "wp_type" in wps.columns:
+        wps = wps[wps["wp_type"].isin(type_filter)]
+    if assignee_filter and "assignee" in wps.columns:
+        wps = wps[wps["assignee"].isin(assignee_filter)]
+    if author_filter and "author" in wps.columns:
+        wps = wps[wps["author"].isin(author_filter)]
+
+    if progress_range and "done_ratio" in wps.columns:
+        min_p, max_p = progress_range
+        progress = pd.to_numeric(wps["done_ratio"], errors="coerce")
+        wps = wps[(progress >= min_p) & (progress <= max_p)]
+
+    if start_date_range and "start_date" in wps.columns:
+        start_min, start_max = start_date_range
+        start_vals = pd.to_datetime(wps["start_date"], errors="coerce").dt.date
+        in_range = (start_vals >= start_min) & (start_vals <= start_max)
+        wps = wps[in_range | (start_vals.isna() if keep_items_without_dates else False)]
+
+    if due_date_range and "due_date" in wps.columns:
+        due_min, due_max = due_date_range
+        due_vals = pd.to_datetime(wps["due_date"], errors="coerce").dt.date
+        in_range = (due_vals >= due_min) & (due_vals <= due_max)
+        wps = wps[in_range | (due_vals.isna() if keep_items_without_dates else False)]
+
+    if late_only:
+        if "is_late" in wps.columns:
+            wps = wps[wps["is_late"].astype(str).str.lower().isin({"true", "1"})]
+        else:
+            due_vals = pd.to_datetime(wps.get("due_date"), errors="coerce").dt.date
+            progress = pd.to_numeric(wps.get("done_ratio"), errors="coerce").fillna(0)
+            wps = wps[(due_vals < date.today()) & (progress < 100)]
+
+    if search_text:
+        q = str(search_text).strip().lower()
+        if q:
+            hay_cols = [c for c in ["wp_subject", "project_name", "assignee", "author"] if c in wps.columns]
+            if hay_cols:
+                hay = wps[hay_cols].fillna("").astype(str).agg(" ".join, axis=1).str.lower()
+                wps = wps[hay.str.contains(q, na=False)]
+
     return DataBundle(projects=bundle.projects, work_packages=wps)
 
 
@@ -1604,12 +1758,73 @@ def main() -> None:
         priority_options = (
             sorted(wp_df["wp_priority"].dropna().unique().tolist()) if "wp_priority" in wp_df.columns else []
         )
+        type_options = sorted(wp_df["wp_type"].dropna().unique().tolist()) if "wp_type" in wp_df.columns else []
+        assignee_options = sorted(wp_df["assignee"].dropna().unique().tolist()) if "assignee" in wp_df.columns else []
+        author_options = sorted(wp_df["author"].dropna().unique().tolist()) if "author" in wp_df.columns else []
 
         project_filter = st.multiselect("Projetos", project_options)
         status_filter = st.multiselect("Status", status_options)
         priority_filter = st.multiselect("Prioridade", priority_options)
+        type_filter = st.multiselect("Tipo", type_options)
+        assignee_filter = st.multiselect("Responsável", assignee_options)
+        author_filter = st.multiselect("Autor", author_options)
 
-    filtered = _apply_filters(bundle, project_filter, status_filter, priority_filter)
+        search_text = st.text_input("Busca rápida", value="", placeholder="Tarefa, projeto, responsável, autor")
+
+        keep_items_without_dates = st.checkbox("Manter itens sem data", value=True)
+        late_only = st.checkbox("Somente atrasados", value=False)
+
+        progress_range = None
+        if "done_ratio" in wp_df.columns and not wp_df["done_ratio"].dropna().empty:
+            progress_range = st.slider(
+                "Progresso (%)",
+                min_value=0,
+                max_value=100,
+                value=(0, 100),
+                step=5,
+            )
+
+        start_date_range = None
+        if "start_date" in wp_df.columns and not wp_df["start_date"].dropna().empty:
+            start_vals = pd.to_datetime(wp_df["start_date"], errors="coerce").dt.date.dropna()
+            if not start_vals.empty:
+                start_date_range = st.date_input(
+                    "Período de início",
+                    value=(start_vals.min(), start_vals.max()),
+                )
+
+        due_date_range = None
+        if "due_date" in wp_df.columns and not wp_df["due_date"].dropna().empty:
+            due_vals = pd.to_datetime(wp_df["due_date"], errors="coerce").dt.date.dropna()
+            if not due_vals.empty:
+                due_date_range = st.date_input(
+                    "Período de fim",
+                    value=(due_vals.min(), due_vals.max()),
+                )
+
+    # normaliza inputs de datas (st.date_input pode devolver 1 ou 2 datas)
+    start_range = None
+    if isinstance(start_date_range, tuple) and len(start_date_range) == 2:
+        start_range = (start_date_range[0], start_date_range[1])
+    due_range = None
+    if isinstance(due_date_range, tuple) and len(due_date_range) == 2:
+        due_range = (due_date_range[0], due_date_range[1])
+
+    filtered = _apply_filters(
+        bundle,
+        project_filter,
+        status_filter,
+        priority_filter,
+        type_filter,
+        assignee_filter,
+        author_filter,
+        progress_range,
+        start_range,
+        due_range,
+        late_only,
+        search_text,
+        keep_items_without_dates=keep_items_without_dates,
+    )
 
     _render_header()
     _render_kpis(filtered)
