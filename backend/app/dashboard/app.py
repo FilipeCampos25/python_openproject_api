@@ -1529,6 +1529,15 @@ def _apply_filters(
     project_filter: Iterable[str],
     status_filter: Iterable[str],
     priority_filter: Iterable[str],
+    type_filter: Iterable[str],
+    assignee_filter: Iterable[str],
+    author_filter: Iterable[str],
+    progress_range: tuple[int, int] | None,
+    start_date_range: tuple[date, date] | None,
+    due_date_range: tuple[date, date] | None,
+    late_only: bool,
+    search_text: str | None,
+    keep_items_without_dates: bool = True,
 ) -> DataBundle:
     wps = bundle.work_packages.copy()
     if project_filter and "project_name" in wps.columns:
@@ -1537,6 +1546,46 @@ def _apply_filters(
         wps = wps[wps["wp_status"].isin(status_filter)]
     if priority_filter and "wp_priority" in wps.columns:
         wps = wps[wps["wp_priority"].isin(priority_filter)]
+    if type_filter and "wp_type" in wps.columns:
+        wps = wps[wps["wp_type"].isin(type_filter)]
+    if assignee_filter and "assignee" in wps.columns:
+        wps = wps[wps["assignee"].isin(assignee_filter)]
+    if author_filter and "author" in wps.columns:
+        wps = wps[wps["author"].isin(author_filter)]
+
+    if progress_range and "done_ratio" in wps.columns:
+        min_p, max_p = progress_range
+        progress = pd.to_numeric(wps["done_ratio"], errors="coerce")
+        wps = wps[(progress >= min_p) & (progress <= max_p)]
+
+    if start_date_range and "start_date" in wps.columns:
+        start_min, start_max = start_date_range
+        start_vals = pd.to_datetime(wps["start_date"], errors="coerce").dt.date
+        in_range = (start_vals >= start_min) & (start_vals <= start_max)
+        wps = wps[in_range | (start_vals.isna() if keep_items_without_dates else False)]
+
+    if due_date_range and "due_date" in wps.columns:
+        due_min, due_max = due_date_range
+        due_vals = pd.to_datetime(wps["due_date"], errors="coerce").dt.date
+        in_range = (due_vals >= due_min) & (due_vals <= due_max)
+        wps = wps[in_range | (due_vals.isna() if keep_items_without_dates else False)]
+
+    if late_only:
+        if "is_late" in wps.columns:
+            wps = wps[wps["is_late"].astype(str).str.lower().isin({"true", "1"})]
+        else:
+            due_vals = pd.to_datetime(wps.get("due_date"), errors="coerce").dt.date
+            progress = pd.to_numeric(wps.get("done_ratio"), errors="coerce").fillna(0)
+            wps = wps[(due_vals < date.today()) & (progress < 100)]
+
+    if search_text:
+        q = str(search_text).strip().lower()
+        if q:
+            hay_cols = [c for c in ["wp_subject", "project_name", "assignee", "author"] if c in wps.columns]
+            if hay_cols:
+                hay = wps[hay_cols].fillna("").astype(str).agg(" ".join, axis=1).str.lower()
+                wps = wps[hay.str.contains(q, na=False)]
+
     return DataBundle(projects=bundle.projects, work_packages=wps)
 
 def main() -> None:
@@ -1604,12 +1653,72 @@ def main() -> None:
         project_options = sorted(wp_df["project_name"].dropna().unique().tolist()) if "project_name" in wp_df.columns else []
         status_options = sorted(wp_df["wp_status"].dropna().unique().tolist()) if "wp_status" in wp_df.columns else []
         priority_options = sorted(wp_df["wp_priority"].dropna().unique().tolist()) if "wp_priority" in wp_df.columns else []
+        type_options = sorted(wp_df["wp_type"].dropna().unique().tolist()) if "wp_type" in wp_df.columns else []
+        assignee_options = sorted(wp_df["assignee"].dropna().unique().tolist()) if "assignee" in wp_df.columns else []
+        author_options = sorted(wp_df["author"].dropna().unique().tolist()) if "author" in wp_df.columns else []
 
         project_filter = st.multiselect("Projetos", project_options)
         status_filter = st.multiselect("Status", status_options)
         priority_filter = st.multiselect("Prioridade", priority_options)
+        type_filter = st.multiselect("Tipo", type_options)
+        assignee_filter = st.multiselect("Responsável", assignee_options)
+        author_filter = st.multiselect("Autor", author_options)
 
-    filtered = _apply_filters(bundle, project_filter, status_filter, priority_filter)
+        search_text = st.text_input("Busca rápida", value="", placeholder="Tarefa, projeto, responsável, autor")
+
+        keep_items_without_dates = st.checkbox("Manter itens sem data", value=True)
+        late_only = st.checkbox("Somente atrasados", value=False)
+
+        progress_range = None
+        if "done_ratio" in wp_df.columns and not wp_df["done_ratio"].dropna().empty:
+            progress_range = st.slider(
+                "Progresso (%)",
+                min_value=0,
+                max_value=100,
+                value=(0, 100),
+                step=5,
+            )
+
+        start_date_range = None
+        if "start_date" in wp_df.columns and not wp_df["start_date"].dropna().empty:
+            start_vals = pd.to_datetime(wp_df["start_date"], errors="coerce").dt.date.dropna()
+            if not start_vals.empty:
+                start_date_range = st.date_input(
+                    "Período de início",
+                    value=(start_vals.min(), start_vals.max()),
+                )
+
+        due_date_range = None
+        if "due_date" in wp_df.columns and not wp_df["due_date"].dropna().empty:
+            due_vals = pd.to_datetime(wp_df["due_date"], errors="coerce").dt.date.dropna()
+            if not due_vals.empty:
+                due_date_range = st.date_input(
+                    "Período de fim",
+                    value=(due_vals.min(), due_vals.max()),
+                )
+
+    start_range = None
+    if isinstance(start_date_range, tuple) and len(start_date_range) == 2:
+        start_range = (start_date_range[0], start_date_range[1])
+    due_range = None
+    if isinstance(due_date_range, tuple) and len(due_date_range) == 2:
+        due_range = (due_date_range[0], due_date_range[1])
+
+    filtered = _apply_filters(
+        bundle,
+        project_filter,
+        status_filter,
+        priority_filter,
+        type_filter,
+        assignee_filter,
+        author_filter,
+        progress_range,
+        start_range,
+        due_range,
+        late_only,
+        search_text,
+        keep_items_without_dates=keep_items_without_dates,
+    )
 
     _render_header()
     _render_kpis(filtered)
