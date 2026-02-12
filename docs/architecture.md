@@ -1,58 +1,69 @@
 # Architecture
 
 ## Objetivo
-Definir uma arquitetura modular para coleta via API do OpenProject e exportacao para Power BI.
-O foco e facilitar manutencao, extensao e depuracao em ambientes reais.
+Definir uma arquitetura modular para coleta via API do OpenProject, normalizacao e exportacao para Power BI,
+com um dashboard Streamlit para visualizacao. O foco e facilitar manutencao, extensao e depuracao em ambientes reais.
 
-## Componentes
-1) **Config (`app/config.py`)**
-   - Leitura de variaveis de ambiente.
-   - Padroniza caminhos, timeouts e flags (ex: verify SSL).
+## Camadas e responsabilidades
+1) **Config (`backend/app/config.py`)**
+   - Carrega `.env` da raiz do repositorio e `backend/.env` (se existirem).
+   - Centraliza Settings (timeouts, paths, flags e credenciais).
 
-2) **OpenProject API (`app/openproject_api`)**
-   - Cliente HTTP para API v3.
-   - Centraliza autenticacao, headers e paginacao.
+2) **OpenProject API (`backend/app/openproject_api`)**
+   - Cliente HTTP para API v3 (`OpenProjectClient`).
+   - Autenticacao via Basic Auth com `username="apikey"`.
+   - Pagina resultados por `pageSize` e `offset`.
 
-3) **Transformations (`app/transformations`)**
-   - Normaliza dados para schema estavel.
-   - Coerce de tipos (datas, inteiros).
-   - Campos derivados (ex: `is_late`).
+3) **Transformations (`backend/app/transformations`)**
+   - `normalize_records` garante schema estavel e coercao de tipos.
+   - `schema.py` define colunas fixas para Power BI.
+   - Calcula campo derivado `is_late` para work packages.
 
-4) **Exporters (`app/exporters`)**
-   - Exportacao para CSV (Power BI friendly).
-   - Estrutura preparada para novos destinos (REST, Parquet, etc).
+4) **Exporters (`backend/app/exporters`)**
+   - Exporta CSV com encoding `utf-8-sig`.
+   - `export_to_powerbi` retorna DataFrames normalizados (uso no dashboard).
 
-5) **Orchestration (`app/orchestration`)**
-   - Fluxo end-to-end: coleta -> normaliza -> exporta.
-   - Ponto unico para controle do pipeline.
+5) **Orchestration (`backend/app/orchestration`)**
+   - `run_api` valida configuracao, coleta dados, normaliza e exporta.
+   - Ignora filtros de work packages para garantir coleta completa.
 
-6) **Dashboard (`app/dashboard`)**
-   - Visualizacao Streamlit/Plotly.
-   - Pode ler via API ou via CSV exportado.
+6) **Dashboard (`backend/app/dashboard`)**
+   - Streamlit para visualizacao e analise.
+   - Autenticacao local via SQLite (`backend/data/dashboard_auth.db`).
+   - Cache local em CSV (snapshot) em `backend/data`.
+
+7) **Logging (`backend/app/logging_setup.py`)**
+   - Padroniza formato e nivel de logs no pipeline.
 
 ## Fluxo de dados (alto nivel)
 ```
-main.py
+backend/app/main.py
   -> orchestration.run_api
        -> openproject_api.client
        -> transformations.normalize
-       -> exporters.powerbi
+       -> exporters.powerbi (CSV)
+
+dashboard/app.py
+  -> openproject_api.client (API)
+  -> transformations.normalize
+  -> UI + cache local (CSV)
 ```
 
 ## Contratos de dados
-Os schemas ficam em `app/transformations/schema.py` e sao aplicados na exportacao.
-Isso garante colunas estaveis para evitar quebra no Power BI.
+Os schemas ficam em `backend/app/transformations/schema.py` e sao aplicados na normalizacao e exportacao.
+Isso garante colunas estaveis e evita quebra no Power BI.
 
 ## Dependencias entre camadas
-- `orchestration` depende de `openproject_api`, `transformations` e `exporters`.
-- `exporters` depende de `transformations` (schema e normalizacao).
-- `dashboard` depende de `openproject_api` e `transformations`.
+- `orchestration` depende de `config`, `openproject_api`, `transformations` e `exporters`.
+- `exporters` depende de `transformations`.
+- `dashboard` depende de `config`, `openproject_api` e `transformations` (nao usa `orchestration`).
 
 ## Erros e resiliencia
 - Falhas de API levantam `OpenProjectAPIError`.
-- Validacao de filtros JSON falha cedo com mensagem clara.
-- Logs consistentes com `logging_setup.py`.
+- Validacoes de configuracao falham cedo com mensagens claras.
+- Dashboard usa fallback para ultimo snapshot CSV quando a API falha.
 
 ## Extensao recomendada
-- Novos endpoints: adicionar metodos no client e atualizar schemas.
-- Novas saidas: criar novo exporter e integrar no orchestration.
+- **Novo endpoint**: adicionar metodo no client, atualizar schema, normalizacao e exportacao.
+- **Nova saida**: criar exporter novo e integrar no orchestration.
+- **Novo painel**: estender `DataBundle` e UI no dashboard.
